@@ -4,6 +4,8 @@
 #include "backend/richpresencemanager.h"
 
 #include <Limelight.h>
+#include <Clipboard.h>
+#include <QMutexLocker>
 #include "SDL_compat.h"
 #include "utils.h"
 
@@ -278,47 +280,34 @@ void Session::clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlag
 
 void Session::clClipboardText(uint32_t, const char *text, unsigned int length)
 {
-    if (s_ActiveSession == nullptr || !s_ActiveSession->m_Preferences->syncClipboard) {
+    auto* session = s_ActiveSession;
+    if (session == nullptr || length == 0 || !SsClipboardTextValid(text, length)) {
         return;
     }
-
-    QByteArray *copy = new QByteArray(text, static_cast<int>(length));
-    SDL_Event clipboardEvent = {};
-    clipboardEvent.type = SDL_USEREVENT;
-    clipboardEvent.user.code = SDL_CODE_CLIPBOARD_TEXT;
-    clipboardEvent.user.data1 = copy;
-    if (SDL_PushEvent(&clipboardEvent) < 0) {
-        delete copy;
-    }
+    session->m_Clipboard.receive(text, length, [] {
+        SDL_Event clipboardEvent = {};
+        clipboardEvent.type = SDL_USEREVENT;
+        clipboardEvent.user.code = SDL_CODE_CLIPBOARD_TEXT;
+        return SDL_PushEvent(&clipboardEvent) == 1;
+    });
 }
 
 void Session::sendClipboardToHost(const char *text)
 {
-    if (!m_Preferences->syncClipboard || text == nullptr) {
+    if (text == nullptr) {
         return;
     }
 
-    QByteArray incoming(text);
-    if (incoming == m_ClipboardEcho) {
-        return;
-    }
-    if (incoming.size() > SS_CLIPBOARD_TEXT_MAX) {
-        incoming.truncate(SS_CLIPBOARD_TEXT_MAX);
-    }
-
-    m_ClipboardEcho = incoming;
-    LiSendClipboardText(incoming.constData(), static_cast<unsigned int>(incoming.size()));
+    m_Clipboard.send(QByteArray(text), [](const QByteArray& incoming) {
+        return LiSendClipboardText(incoming.constData(), static_cast<unsigned int>(incoming.size())) == 0;
+    });
 }
 
 void Session::applyClipboardFromHost(const char *text, unsigned int length)
 {
-    QByteArray incoming(text, static_cast<int>(length));
-    if (incoming == m_ClipboardEcho) {
-        return;
-    }
-
-    m_ClipboardEcho = incoming;
-    SDL_SetClipboardText(incoming.constData());
+    m_Clipboard.apply(QByteArray(text, static_cast<int>(length)), [](const QByteArray& incoming) {
+        return SDL_SetClipboardText(incoming.constData()) == 0;
+    });
 }
 
 
@@ -1343,10 +1332,10 @@ private:
             NvHTTP http(m_Session->m_Computer);
 
             // Logging is already done inside NvHTTP
-            try {
+              try {
                 http.quitApp();
-            } catch (const GfeHttpResponseException&) {
-            } catch (const QtNetworkReplyException&) {
+              } catch (const GfeHttpResponseException&) {
+              } catch (const QtNetworkReplyException&) {
             }
 
             // Session is finished now
@@ -1658,6 +1647,25 @@ bool Session::startConnectionAsync()
 
     try {
         NvHTTP http(m_Computer);
+        if (m_Preferences->syncClipboard) {
+            try {
+                // Fetch capabilities over the paired TLS connection immediately before launch.
+                // Use the strict request here so HTTP discovery cannot enable clipboard sharing.
+                QUrl capabilityUrl;
+                capabilityUrl.setScheme("https");
+                capabilityUrl.setHost(http.address().address());
+                capabilityUrl.setPort(http.httpsPort());
+                QString info = http.openConnectionToString(capabilityUrl, "serverinfo", nullptr, 5000, NvHTTP::NVLL_ERROR);
+                NvHTTP::verifyResponseStatus(info);
+                if (NvHTTP::getXmlString(info, "CustomClipboardVersion").toInt() == SS_CLIPBOARD_VERSION) {
+                    m_Clipboard.configure(true, SS_CLIPBOARD_VERSION, NvHTTP::getXmlString(info, "CustomClipboardDirections").toInt());
+                }
+            } catch (const GfeHttpResponseException&) {
+                qWarning() << "Clipboard capability query failed; sharing is disabled";
+            } catch (const QtNetworkReplyException&) {
+                qWarning() << "Clipboard capability query failed; sharing is disabled";
+            }
+        }
         http.startApp(m_Computer->currentGameId != 0 ? "resume" : "launch",
                       m_Computer->isNvidiaServerSoftware,
                       m_App.id, &m_StreamConfig,
@@ -2001,11 +2009,11 @@ void Session::exec()
     // Start rich presence to indicate we're in game
     RichPresenceManager presence(*m_Preferences, m_App.name);
 
-    if (m_Preferences->syncClipboard) {
+    if (m_Clipboard.directions() != 0) {
 #if SDL_VERSION_ATLEAST(2, 0, 22)
         SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_ENABLE);
 #endif
-        LiSendClipboardText(nullptr, 0);
+        if (LiSendClipboardText(nullptr, 0) != 0) m_Clipboard.stop();
     }
 
     // Toggle the stats overlay if requested by the user
@@ -2018,6 +2026,7 @@ void Session::exec()
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
     for (;;) {
+        m_Clipboard.retryApply([](const QByteArray& text) { return SDL_SetClipboardText(text.constData()) == 0; });
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,
@@ -2028,7 +2037,7 @@ void Session::exec()
         // NB: This behavior was introduced in SDL 2.0.16, but had a few critical
         // issues that could cause indefinite timeouts, delayed joystick detection,
         // and other problems.
-        if (!SDL_WaitEventTimeout(&event, 1000)) {
+        if (!SDL_WaitEventTimeout(&event, m_Clipboard.hasRetry() ? 250 : 1000)) {
             presence.runCallbacks();
             continue;
         }
@@ -2076,11 +2085,8 @@ void Session::exec()
                                                (uint16_t)((uintptr_t)event.user.data2 & 0xFFFF));
                 break;
             case SDL_CODE_CLIPBOARD_TEXT: {
-                auto *text = static_cast<QByteArray *>(event.user.data1);
-                if (text != nullptr) {
-                    applyClipboardFromHost(text->constData(), static_cast<unsigned int>(text->size()));
-                    delete text;
-                }
+                QByteArray text = m_Clipboard.take();
+                applyClipboardFromHost(text.constData(), static_cast<unsigned int>(text.size()));
                 break;
             }
             case SDL_CODE_GAMECONTROLLER_SET_MOTION_EVENT_STATE:
@@ -2314,7 +2320,7 @@ void Session::exec()
             break;
 #if SDL_VERSION_ATLEAST(2, 0, 22)
         case SDL_CLIPBOARDUPDATE:
-            if (m_Preferences->syncClipboard && SDL_HasClipboardText()) {
+            if ((m_Clipboard.directions() & SS_CLIPBOARD_CLIENT_TO_HOST) && SDL_HasClipboardText()) {
                 char *text = SDL_GetClipboardText();
                 if (text != nullptr) {
                     sendClipboardToHost(text);
@@ -2381,6 +2387,7 @@ void Session::exec()
     }
 
 DispatchDeferredCleanup:
+    m_Clipboard.stop();
     // Switch back to synchronous logging mode
     StreamUtils::exitAsyncLoggingMode();
 

@@ -1351,7 +1351,7 @@ Flickable {
                     id: syncClipboardCheck
                     hoverEnabled: true
                     width: parent.width
-                    text: qsTr("Sync clipboard")
+                    text: qsTr("Sync text clipboard")
                     font.pointSize:  12
                     checked: StreamingPreferences.syncClipboard
                     onCheckedChanged: {
@@ -1361,7 +1361,7 @@ Flickable {
                     ToolTip.delay: 1000
                     ToolTip.timeout: 10000
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Keep text clipboard contents in sync with the host while streaming. Requires a Sunshine host with clipboard support. Ctrl+Alt+Shift+V still types the clipboard on older hosts.")
+                    ToolTip.text: qsTr("Share plain text during streaming with a compatible Sunshine host. Enable Text Clipboard Sharing on the host to select permitted directions. Host-to-client sharing sends the current host text when streaming starts. Text over 32,755 UTF-8 bytes and clipboard clears are ignored. Ctrl+Alt+Shift+V still types the clipboard on older hosts.")
                 }
 
                 Row {

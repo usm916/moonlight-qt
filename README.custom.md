@@ -16,9 +16,9 @@ Sunshine Customと連携するWindows向けクライアントです。Windows/Li
 
 ## 現在の状態
 
-初期構成は通常配信の基準を保ち、共通ライブラリの参照先を独自フォークへ変更した段階です。クリップボード同期のUI・送受信はまだ実装されていません。初期対象には画像・ファイル転送を含めません。
+`feature/clipboard-text`にWindows向けテキスト同期を実装しました。既定OFFで、対応ホストの許可方向に従います。画像・ファイル転送は対象外です。Windows Releaseビルドと通信・状態管理テストは成功しました。別端末間の配信を通した往復と他OSは未検証です。
 
-共通ライブラリはホストと同じ固定コミットを使います。そのコミットには[通信仕様案](moonlight-common-c/moonlight-common-c/docs/custom/clipboard-v1.md)があり、通信に関する決定はこの文書へ集約します。依存バージョンは[compatibility.json](docs/custom/compatibility.json)に記録します。
+共通ライブラリはホストと同じ固定コミットを使います。そのコミットには[通信仕様](moonlight-common-c/moonlight-common-c/docs/custom/clipboard-v1.md)があり、通信に関する決定はこの文書へ集約します。依存バージョンは[compatibility.json](docs/custom/compatibility.json)に記録します。
 
 Sunshine側の`scripts/check-custom-pair.ps1`でホスト・クライアントの固定コミット、submoduleの取得元とチェックアウト、通常配信のソース基準を検査できます。この検査はネイティブビルドやコピー動作の成功を保証しません。
 
@@ -59,8 +59,20 @@ git push origin custom/main
 
 本流の[README](README.md#building)に従ってQt MSVC版、Visual Studio、依存ライブラリを準備します。SunshineのMSYS2ビルド環境とは別です。
 
-この環境ではVisual Studio 2022を検出していますが、本流が推奨するVisual Studio 2026とQt 6.11 SDKの利用可否は未確認です。Qtの標準候補パスにはSDKが見つからず、クライアントのネイティブビルドは未実行です。
+Windows x64でVisual Studio 2022 Build Tools 17.14.13、Qt 6.11.1 MSVC2022、jom 1.1.4、上流のWindows依存パッケージv19を使用してReleaseビルドを確認しました。Qt SDKは`D:\data\tools\Qt`です。
 
 初回は`git submodule update --init --recursive`と本流の`setup-deps.ps1`を使って依存関係を準備します。ビルド手順やバージョン要件は本流の更新に合わせて確認します。
 
 通常配信・切断再接続を基準にし、同期実装後はOFF/ON、未対応ホスト、Unicode、上限超過、反射ループ、クリップボード占有を検証します。他OSは実機確認後に対応状況を更新します。
+
+## カスタム版のビルドと利用
+
+Sunshine側の`scripts/custom/install-qt.py`で公式のQt SDKを取得できます（Pythonの`py7zr`が必要）。上流の`setup-deps.ps1`でWindows依存パッケージを準備してから実行します。
+
+```powershell
+& .\scripts\build-custom.ps1 -QtRoot 'D:\data\tools\Qt' -Jobs 4
+```
+
+共通プロトコルとクライアントのライフサイクルテストもこのコマンドで実行します。成功時は`build/deploy-custom-x64-release/Moonlight.exe`と必要なDLLを配置します。フォルダ全体がポータブル版です。
+
+設定画面の`Sync text clipboard`を有効にし、カスタムSunshineへ接続します。ホスト→クライアントを許可すると接続時のホストのテキストも同期されます。UTF-8で32,755バイトまで、空の内容は同期しません。詳細は共通仕様を参照してください。

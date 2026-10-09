@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include "clipboardstate.h"
 #include <QSemaphore>
 #include <QQuickWindow>
 
@@ -251,7 +252,7 @@ private:
     int drSubmitDecodeUnit(PDECODE_UNIT du);
 
     StreamingPreferences* m_Preferences;
-    QByteArray m_ClipboardEcho;
+    ClipboardState m_Clipboard;
     bool m_IsFullScreen;
     SupportedVideoFormatList m_SupportedVideoFormats; // Sorted in order of descending priority
     STREAM_CONFIGURATION m_StreamConfig;
