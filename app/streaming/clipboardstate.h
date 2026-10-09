@@ -16,6 +16,12 @@ public:
         m_Directions = enabled && version == SS_CLIPBOARD_VERSION ? permissions & 3 : 0;
     }
     int directions() const { return m_Directions.load(); }
+    // Remember the local value at subscription time without sending it. SDL can
+    // queue an initial clipboard notification when the streaming window opens.
+    void seedLocal(const QByteArray& text) {
+        QMutexLocker lock(&m_Lock);
+        if ((directions() & SS_CLIPBOARD_CLIENT_TO_HOST) && valid(text)) m_Echo = text;
+    }
     void stop() {
         QMutexLocker lock(&m_Lock);
         m_Directions = 0;

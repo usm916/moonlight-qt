@@ -14,6 +14,8 @@ int main() {
     state.configure(true, 0, 3);
     assert(state.directions() == 0);
     state.configure(true, 1, 3);
+    state.seedLocal("initial local text");
+    assert(!state.send("initial local text", send));
     assert(!state.send(QByteArray(SS_CLIPBOARD_TEXT_MAX + 1, 'a'), send));
     assert(!state.send(QByteArray("a\0b",3), send));
     assert(!state.send("", send));

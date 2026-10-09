@@ -2013,6 +2013,11 @@ void Session::exec()
 #if SDL_VERSION_ATLEAST(2, 0, 22)
         SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_ENABLE);
 #endif
+        char* initialText = SDL_GetClipboardText();
+        if (initialText != nullptr) {
+            m_Clipboard.seedLocal(QByteArray(initialText));
+            SDL_free(initialText);
+        }
         if (LiSendClipboardText(nullptr, 0) != 0) m_Clipboard.stop();
     }
 
