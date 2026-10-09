@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "client_upstream_base": "a57e947d7185fd01384f6973df4df59ae2968d01",
+  "host_repository": "https://github.com/usm916/Sunshine.git",
+  "host_branch": "custom/main",
+  "common_repository": "https://github.com/usm916/moonlight-common-c.git",
+  "common_commit": "354af50957626e00b36202e78fd4d8ec13cca541",
+  "common_code_base": "f900dd4767759c7b9d0e93bcea666b55c69ea62f",
+  "clipboard_status": "draft_not_implemented",
+  "native_build_status": "not_run",
+  "end_to_end_status": "not_run"
+}
