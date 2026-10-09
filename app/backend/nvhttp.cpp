@@ -459,9 +459,17 @@ NvHTTP::openConnectionToString(QUrl baseUrl,
                                QString command,
                                QString arguments,
                                int timeoutMs,
-                               NvLogLevel logLevel)
+                               NvLogLevel logLevel,
+                               bool requirePinnedCertificate)
 {
     QNetworkReply* reply = openConnection(baseUrl, command, arguments, timeoutMs, logLevel);
+    // Clipboard capabilities require the exact paired identity, even when a different
+    // certificate would pass the operating system's general CA trust validation.
+    if (requirePinnedCertificate && (baseUrl.scheme() != "https" || m_ServerCert.isNull() ||
+                                    reply->sslConfiguration().peerCertificate() != m_ServerCert)) {
+        delete reply;
+        throw GfeHttpResponseException(401, "Server certificate mismatch");
+    }
     QString ret;
 
     QTextStream stream(reply);

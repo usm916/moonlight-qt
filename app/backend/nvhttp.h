@@ -139,7 +139,8 @@ public:
                            QString command,
                            QString arguments,
                            int timeoutMs,
-                           NvLogLevel logLevel = NvLogLevel::NVLL_VERBOSE);
+                           NvLogLevel logLevel = NvLogLevel::NVLL_VERBOSE,
+                           bool requirePinnedCertificate = false);
 
     void setServerCert(QSslCertificate serverCert);
     void setAddress(NvAddress address);

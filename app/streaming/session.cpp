@@ -1655,7 +1655,7 @@ bool Session::startConnectionAsync()
                 capabilityUrl.setScheme("https");
                 capabilityUrl.setHost(http.address().address());
                 capabilityUrl.setPort(http.httpsPort());
-                QString info = http.openConnectionToString(capabilityUrl, "serverinfo", nullptr, 5000, NvHTTP::NVLL_ERROR);
+                QString info = http.openConnectionToString(capabilityUrl, "serverinfo", nullptr, 5000, NvHTTP::NVLL_ERROR, true);
                 NvHTTP::verifyResponseStatus(info);
                 if (NvHTTP::getXmlString(info, "CustomClipboardVersion").toInt() == SS_CLIPBOARD_VERSION) {
                     m_Clipboard.configure(true, SS_CLIPBOARD_VERSION, NvHTTP::getXmlString(info, "CustomClipboardDirections").toInt());
