@@ -52,6 +52,7 @@ Copy-Item -LiteralPath "$root\app\SDL_GameControllerDB\gamecontrollerdb.txt" -De
 if ($LASTEXITCODE) { throw 'Qt deployment failed.' }
 $runtime = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT'
 if (!$runtime) { throw 'MSVC redistributable DLLs were not found.' }
+$runtime = $runtime | Sort-Object -Property { [version]((Get-Item -LiteralPath (Join-Path $_ 'msvcp140.dll')).VersionInfo.FileVersion -replace ' .*$', '') } -Descending
 Copy-Item "$($runtime | Select-Object -First 1)\*.dll" -Destination $deploy
 Set-Content -LiteralPath "$deploy\portable.dat" -Value ''
 Write-Host "Portable Moonlight: $deploy\Moonlight.exe"
