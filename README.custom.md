@@ -1,6 +1,6 @@
 # Moonlight Qt Custom
 
-Sunshine Customと連携するWindows向けクライアントです。Windows/Linux/macOS対応のMoonlight Qtをベースにし、最初はWindows同士のテキストクリップボード同期を目標とします。
+Sunshine Customと連携するMoonlight Qtの独自版です。Windowsで動作検証しており、Mac版の開発開始手順を [Mac開発引き継ぎ](docs/custom/mac-development.md) にまとめています。Macでのコンパイル・実接続・テキスト同期は未確認です。
 
 | 項目 | 設定 |
 | --- | --- |
@@ -76,3 +76,12 @@ Sunshine側の`scripts/custom/install-qt.py`で公式のQt SDKを取得できま
 共通プロトコルとクライアントのライフサイクルテストもこのコマンドで実行します。成功時は`build/deploy-custom-x64-release/Moonlight.exe`と必要なDLLを配置します。フォルダ全体がポータブル版です。
 
 設定画面の`Sync text clipboard`を有効にし、カスタムSunshineへ接続します。ホスト→クライアントを許可すると接続時のホストのテキストも同期されます。UTF-8で32,755バイトまで、空の内容は同期しません。詳細は共通仕様を参照してください。
+
+
+## Windows配布物のランタイム修正（2026-10-17）
+
+初期の `Moonlight-custom-ce35564e-windows-x64.zip` は、Visual C++ランタイム14.16.27052.0を同梱し、接続開始時に `msvcp140.dll` 内でアクセス違反（0xc0000005、オフセット0x192a0）を起こしました。修正はアプリと同じフォルダーのランタイム10ファイルを、Microsoft署名が有効な14.44.35211.0に更新するものです。システム全体のDLLは変更しません。
+
+修正済みの `Moonlight-custom-ce35564e-runtime-fixed-windows-x64.zip` を使用してください。元のZIP名も修正版へ更新しています。この修正ではMoonlight.exeを変更せず、既存の設定・ペアリングを保持します。変更前のDLLとZIPは `build/runtime-backup-20261017-223942` に保存しました。
+
+Windows上でカスタムSunshineへ1920×1080・60fps要求・HEVC・ウィンドウモードで25秒接続し、映像の最初のパケット受信・クライアント継続・新規クラッシュダンプ0件・通常終了を確認しました。これは長時間安定性や別PC間のクリップボード往復の検証ではありません。配布スクリプト `scripts/build-custom.ps1` は、すでに再配布ランタイムの版を比較して最新のものを選択します。

@@ -12,5 +12,8 @@
   "clipboard_tests": [
     "protocol_passed",
     "client_lifecycle_passed"
-  ]
+  ],
+  "macos_build_status": "not_run",
+  "macos_end_to_end_status": "not_run",
+  "development_guide": "docs/custom/mac-development.md"
 }

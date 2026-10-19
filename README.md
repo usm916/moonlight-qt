@@ -1,5 +1,7 @@
 # Moonlight PC
 
+> **Moonlight Custom (`usm916`, `custom/main`)**: [custom features](README.custom.md) · [Mac development handoff](docs/custom/mac-development.md).
+
 [Moonlight PC](https://moonlight-stream.org) is an open source PC client for NVIDIA GameStream and [Sunshine](https://github.com/LizardByte/Sunshine).
 
 Moonlight also has mobile versions for [Android](https://github.com/moonlight-stream/moonlight-android) and [iOS](https://github.com/moonlight-stream/moonlight-ios).
